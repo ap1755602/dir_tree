@@ -3,16 +3,17 @@ package main
 import (
 	"fmt"
 	"io"
+	"io/fs"
 	"log"
 	"os"
 	"sort"
 )
 
-var ignoredFiles = []string{
-	".DS_Store",
-	".gitignore",
-	".idea",
-}
+//var ignoredFiles = []string{
+//	".DS_Store",
+//	".gitignore",
+//	".idea",
+//}
 
 func main() {
 	out := os.Stdout
@@ -28,70 +29,104 @@ func main() {
 }
 
 func dirTree(out io.Writer, path string, printFiles bool) error {
-	err := dirTreeRec(out, path, printFiles, 0)
-	return err
+	var lvl map[int]bool //map[int]bool{0: true}
+	return dirTreeRec(out, path, printFiles, &lvl)
+
 }
 
-func dirTreeRec(out io.Writer, path string, printFiles bool, lvl int) error {
-	//file, err := os.Open(path) // For read access.
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//data := make([]byte, 100)
-	//count, err := file.Read(data)
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	//fmt.Printf("read %d bytes: %q\n", count, data[:count])
-
+func dirTreeRec(out io.Writer, path string, printFiles bool, lvl *map[int]bool) error {
 	files, err := os.ReadDir(path)
+
 	if err != nil {
 		log.Fatal(err)
 	}
 	sort.Slice(files, func(i, j int) bool { return files[i].Name()[0] < files[j].Name()[0] })
+	if !printFiles {
+		deleteFilesFromSl(&files)
+	}
 	l := len(files)
 
-	var b bool
+	//var b bool
+	if l == 0 {
+		if *lvl != nil {
+			delete(*lvl, len(*lvl)-1)
+		}
+		return nil
+	}
 	for n, file := range files {
 		if file.IsDir() {
-			if n+1 == l {
-				b = true
+			if *lvl == nil {
+				*lvl = map[int]bool{0: n+1 == l}
+			} else {
+				(*lvl)[len(*lvl)] = n+1 == l
 			}
-			printer(file.Name(), lvl, b)
-			//fmt.Println("dir: ", file.Name())
-			err := dirTreeRec(out, path+"/"+file.Name(), printFiles, lvl+1)
+			printDir(file.Name(), lvl)
+			if n+1 == l {
+				delete(*lvl, len(*lvl)-1)
+				return nil
+			}
+			err := dirTreeRec(out, path+"/"+file.Name(), printFiles, lvl)
 			if err != nil {
 				return err
 			}
-		}
-		if printFiles {
-			info, _ := file.Info()
-			if info.Size() > 0 {
-				fmt.Printf("File: %s (%db)\n", file.Name(), info.Size())
-				continue
+		} else {
+			if n+1 == l {
+				delete(*lvl, len(*lvl)-1)
 			}
-			fmt.Println("File: ", file.Name(), "(empty)")
+			//	//if printFiles
+			//	//info, _ := file.Info()
+			//	if n+1 == l {
+			//		return nil
+			//		//delete(*lvl, len(*lvl))
+			//	}
+			//if info.Size() > 0 {
+			//fmt.Printf("File: %s (%db)\n", file.Name(), info.Size())
+			//continue
+			//}
+			//fmt.Println("File: ", file.Name(), "(empty)")
 		}
+
 	}
 
 	return nil
 }
 
-func printer(name string, lvl int, b bool) {
+func printDir(name string, lvl *map[int]bool) {
 	var branch string
-	i := lvl
-	if i > 0 {
-		branch += "│\t"
+	//if len(*lvl) == 1 && (*lvl)[0] == false {
+	//	branch += `└───` + name
+	//	return
+	//}
+	for i, b := range *lvl {
+		//fmt.Println("Yo")
+
+		if i+1 == len(*lvl) {
+			if b == false {
+				branch += `├───` + name
+				fmt.Printf("%s\n", branch)
+				return
+			} else {
+				branch += `└───` + name
+				fmt.Printf("%s\n", branch)
+				return
+			}
+		}
+		if b == false {
+			branch += `│`
+		}
+		branch += "\t"
+	}
+
+}
+
+func deleteFilesFromSl(files *[]fs.DirEntry) {
+	for i := 0; i < len(*files); i++ {
+		if (*files)[i].IsDir() {
+			continue
+		}
+		copy((*files)[i:], (*files)[i+1:])
+		(*files)[len(*files)-1] = nil
+		*files = (*files)[:len(*files)-1]
 		i--
 	}
-	for i > 0 {
-		branch += "│\t"
-		i--
-	}
-	if !b {
-		branch += `├───` + name
-	} else {
-		branch += `└───` + name
-	}
-	fmt.Printf("%s\n", branch)
 }
