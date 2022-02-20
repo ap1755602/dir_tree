@@ -61,18 +61,15 @@ func dirTreeRec(out io.Writer, path string, printFiles bool, lvl *map[int]bool) 
 				(*lvl)[len(*lvl)] = n+1 == l
 			}
 			printDir(file.Name(), lvl)
-			if n+1 == l {
-				delete(*lvl, len(*lvl)-1)
-				return nil
-			}
+
 			err := dirTreeRec(out, path+"/"+file.Name(), printFiles, lvl)
 			if err != nil {
 				return err
 			}
 		} else {
-			if n+1 == l {
-				delete(*lvl, len(*lvl)-1)
-			}
+			//if n+1 == l {
+			//	delete(*lvl, len(*lvl)-1)
+			//}
 			//	//if printFiles
 			//	//info, _ := file.Info()
 			//	if n+1 == l {
@@ -87,18 +84,14 @@ func dirTreeRec(out io.Writer, path string, printFiles bool, lvl *map[int]bool) 
 		}
 
 	}
-
+	delete(*lvl, len(*lvl)-1)
 	return nil
 }
 
 func printDir(name string, lvl *map[int]bool) {
 	var branch string
-	//if len(*lvl) == 1 && (*lvl)[0] == false {
-	//	branch += `└───` + name
-	//	return
-	//}
+
 	for i, b := range *lvl {
-		//fmt.Println("Yo")
 
 		if i+1 == len(*lvl) {
 			if b == false {
