@@ -1,4 +1,4 @@
-# hw_dir_tree
+# dir_tree
 
 ### Утилита tree<br/> ###
 
